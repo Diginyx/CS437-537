@@ -6,13 +6,12 @@
 
 import nltk
 import pickle5 as pickle
-import pandas as pd
 import math
+import re
 from tqdm import tqdm
 from nltk.stem import WordNetLemmatizer
 from names_dataset import NameDatasetV1  # v1
 from nltk.corpus import stopwords
-from os import listdir
 from itertools import combinations
 from scipy import spatial
 
@@ -196,36 +195,35 @@ def find_and_rank_candidate_resources(query):
 
 # In[27]:
 
-
 def get_snippet(query, document_id):
-    snippet = tuple()  # in the form (title, sentences)
-    row = wiki_dataframe[wiki_dataframe['id'] == document_id]
-    snippet[0] = row["title"]
-    snippet[1] = generate_sentence_snippets(query, row["content"])
+    row = wiki_dataframe[wiki_dataframe['id'] == document_id + 1]
+    snippet = (  # tuple in the form (title, sentences)
+        row["title"].to_string(index=False),
+        generate_sentence_snippets(query, document_id, int(row["title"].str.len())))
     return snippet
 
 
 # In[23]:
 
+def generate_sentence_snippets(query, document_id, len_title):
+    pattern = "(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s"
+    top_two = []  # format is (sentence, cosine_similarity_score)
+    vectorized_query = vectorize(query, document_id)
+    for sentence in re.split(pattern, wiki_dataframe["content"][document_id][len_title:]):
+        sentence = sentence.rstrip()[4:]  # 4 is for removal of \r\n\r\n for each sentence.
+        lsentence = sentence.lower()
 
-def generate_sentence_snippets(query, content):
-    print("Generating Snippets...")
-    top_two = list()  # format is (sentence, cosine_similarity_score)
-    vectorized_query = vectorize(query)
-    for sentence in content:
-        print(".", end="")
-        sentence_score = cosine_similarity(vectorized_query, vectorize(sentence))
+        sentence_score = cosine_similarity(vectorized_query, vectorize(lsentence, document_id))
         if len(top_two) < 2:
             top_two.append((sentence, sentence_score))
             top_two.sort(key=lambda item: item[1], reverse=True)
             continue
 
         for index, entry in enumerate(top_two):  # this loop should only run twice
-            if sentence_score > entry[index][1]:
+            if sentence_score > entry[1]:
                 top_two.insert(index, (sentence, sentence_score))
                 continue
-
-    return top_two[0][0] + "\n" + top_two[1][0]
+    return top_two[0][0], top_two[1][0]
 
 
 # In[ ]:
@@ -243,7 +241,7 @@ def vectorize(phrase):
 
 def cosine_similarity(vectorized_query, vectorized_sentence):
     lenf = max(len(vectorized_query), len(vectorized_sentence))
-    for i in range (lenf + 1):
+    for i in range(lenf + 1):
         if len(vectorized_query) == len(vectorized_sentence):
             break
         if len(vectorized_query) < i:
@@ -251,6 +249,7 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
         if len(vectorized_sentence) < i:
             vectorized_sentence.append(0.001)
     return 1 - spatial.distance.cosine(list(vectorized_sentence), list(vectorized_query))
+
 
 # ### Putting Everything together
 
@@ -262,7 +261,8 @@ def search(query):
     ranked_candidate_resources = find_and_rank_candidate_resources(query)
     results = {}
     for resource in ranked_candidate_resources[:10]:
-        title, sentences = get_snippet(query, resource)
+        print("resource", resource)
+        title, sentences = get_snippet(query, resource[0])
         results[resource] = [title, sentences]
     ranked_candidate_queries = find_rank_candidate_queries(query)
     results["query_suggestions"] = []
