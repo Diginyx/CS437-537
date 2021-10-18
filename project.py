@@ -206,7 +206,7 @@ def get_snippet(query, document_id):
 # In[23]:
 
 def generate_sentence_snippets(query, document_id, len_title):
-    pattern = "(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s"
+    pattern = '(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s'
     top_two = []  # format is (sentence, cosine_similarity_score)
     vectorized_query = vectorize(query, document_id)
     for sentence in re.split(pattern, wiki_dataframe["content"][document_id][len_title:]):
@@ -229,10 +229,10 @@ def generate_sentence_snippets(query, document_id, len_title):
 # In[ ]:
 
 
-def vectorize(phrase):
+def vectorize(phrase, document_id):
     arr = []
-    for index, word in enumerate(phrase):
-        arr[index] = tf_idf(word)
+    for word in phrase.split():
+        arr.append(tf_idf([word], document_id))
     return arr
 
 
