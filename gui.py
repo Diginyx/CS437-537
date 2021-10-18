@@ -1,5 +1,7 @@
 import PySimpleGUI as sg
+from project import search, load_files
 
+wiki_dataframe, inv_idx = load_files()
 sg.theme('DarkBlue')  # Keep things interesting for your users
 
 searchLayout = [
@@ -27,6 +29,8 @@ while True:  # The Event Loop
 
     query = values['-query-']
     if query:
+        results = search(query)
+        print(results)
         window[f'-search-layout-'].update(visible=False)
         window[f'-results-layout-'].update(visible=True)
     print(query)
