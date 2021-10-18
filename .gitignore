@@ -2,3 +2,4 @@
 wiki_dataframe
 *.pkl
 wiki_dataframe_with_179_domain_stop_words
+__pycache__

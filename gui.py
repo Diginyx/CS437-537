@@ -1,7 +1,6 @@
 import PySimpleGUI as sg
-from project import search, load_files
+from project import search
 
-wiki_dataframe, inv_idx = load_files()
 sg.theme('DarkBlue')  # Keep things interesting for your users
 
 searchLayout = [

@@ -14,6 +14,8 @@ from names_dataset import NameDatasetV1  # v1
 from nltk.corpus import stopwords
 from os import listdir
 from itertools import combinations
+from scipy import spatial
+
 nltk.download('all')
 
 # ## Reading File and creating DataFrame
@@ -44,23 +46,12 @@ def load_files():
     return [wiki_dataframe, inv_idx, aol_query_log]
 
 
-files = load_files()
-wiki_dataframe = files[0]
-inv_idx = files[1]
-aol_query_log = files[2]
+wiki_dataframe, inv_idx, aol_query_log = load_files()
+
 
 # ## Suggesting Queries
 
 # In[ ]:
-
-aol_query_log = pd.read_csv('project_1_AOL_query_log/Clean-Data-01.txt', sep="\t")
-for file in listdir('project_1_AOL_query_log')[1:]:
-    aol_query_log = aol_query_log.append(pd.read_csv('project_1_AOL_query_log/' + str(file), sep="\t"),
-                                         ignore_index=True)
-
-
-# In[ ]:
-
 
 # lemmatization, lowercase, remove non alphanumeric, and stopword removal
 def query_logs_preprocessing(row):
@@ -250,12 +241,16 @@ def vectorize(phrase):
 # In[33]:
 
 
-from scipy import spatial
-
-
 def cosine_similarity(vectorized_query, vectorized_sentence):
-    return 1 - spatial.distance.cosine(vectorized_sentence, vectorized_query)
-
+    lenf = max(len(vectorized_query), len(vectorized_sentence))
+    for i in range (lenf + 1):
+        if len(vectorized_query) == len(vectorized_sentence):
+            break
+        if len(vectorized_query) < i:
+            vectorized_query.append(0.001)
+        if len(vectorized_sentence) < i:
+            vectorized_sentence.append(0.001)
+    return 1 - spatial.distance.cosine(list(vectorized_sentence), list(vectorized_query))
 
 # ### Putting Everything together
 
@@ -275,3 +270,6 @@ def search(query):
         results["query_suggestions"].append(query_suggestion[0])
 
     return results
+
+
+search("sex")
