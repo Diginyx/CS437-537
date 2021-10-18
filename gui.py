@@ -8,10 +8,10 @@ searchLayout = [
     [sg.Button('Search'), sg.Exit()]
 ]
 
-arr = [("MeTV", ("A great number of people like watching Hogans Heroes.", "There are some very popular shows."))]
+results = []
 resultsLayout = [
     [sg.Text('You searched for: '), sg.Text(size=(15, 1), key='-output-')],
-    *[[sg.Text(item[0] + "\n" + item[1][0] + " " + item[1][1])] for item in arr],
+    *[[sg.Text(str(item[0]), "\n", str(item[1][0]))] for item in results],
     [sg.Button('Back')]
 ]
 
@@ -28,7 +28,13 @@ while True:  # The Event Loop
 
     query = values['-query-']
     if query:
-        results = search(query)
+        for item in search(query):
+            results.append(item)
+        resultsLayout = [
+            [sg.Text('You searched for: '), sg.Text(size=(15, 1), key='-output-')],
+            *[[sg.Text(item[0] + "\n" + item[1][0] + " " + item[1][1] if not None else "")] for item in results],
+            [sg.Button('Back')]
+        ]
         print(results)
         window[f'-search-layout-'].update(visible=False)
         window[f'-results-layout-'].update(visible=True)

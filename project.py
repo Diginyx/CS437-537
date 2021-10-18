@@ -15,7 +15,7 @@ from nltk.corpus import stopwords
 from itertools import combinations
 from scipy import spatial
 
-nltk.download('all')
+# nltk.download('all')
 
 # ## Reading File and creating DataFrame
 
@@ -162,8 +162,15 @@ def identify_candidate_resources(query):
 
 
 def tf_idf(split_query, document_id):
-    score = 0
+    score = 0.001  # not zero for normalization
+
+    if document_id == 0:
+        print("error in tf-idf function")
+        return
+
     for term in split_query:
+        if term not in inv_idx:
+            continue
         score += (inv_idx[term][document_id] / wiki_dataframe['most_frequent_term'][document_id - 1][0][1]) * math.log(
             (len(wiki_dataframe) / len(inv_idx[term])), 2)
     return score
@@ -210,7 +217,7 @@ def generate_sentence_snippets(query, document_id, len_title):
     top_two = []  # format is (sentence, cosine_similarity_score)
     vectorized_query = vectorize(query, document_id)
     for sentence in re.split(pattern, wiki_dataframe["content"][document_id][len_title:]):
-        sentence = sentence.rstrip()[4:]  # 4 is for removal of \r\n\r\n for each sentence.
+        sentence = sentence.replace("\r", "").replace("\n", "")  # 4 is for removal of \r\n\r\n for each sentence.
         lsentence = sentence.lower()
 
         sentence_score = cosine_similarity(vectorized_query, vectorize(lsentence, document_id))
@@ -221,9 +228,14 @@ def generate_sentence_snippets(query, document_id, len_title):
 
         for index, entry in enumerate(top_two):  # this loop should only run twice
             if sentence_score > entry[1]:
-                top_two.insert(index, (sentence, sentence_score))
-                continue
-    return top_two[0][0], top_two[1][0]
+                top_two[index] = (sentence, sentence_score)
+                top_two.sort(key=lambda item: item[1], reverse=True)
+                break
+    if len(top_two) < 2:
+        result = top_two[0][0]
+    else:
+        result = (top_two[0][0], top_two[1][0])
+    return result
 
 
 # In[ ]:
@@ -258,18 +270,21 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
 
 def search(query):
     print("Generating results...")
-    ranked_candidate_resources = find_and_rank_candidate_resources(query)
+    ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
     results = {}
-    for resource in ranked_candidate_resources[:10]:
+    for resource in ranked_candidate_resources:
         print("resource", resource)
         title, sentences = get_snippet(query, resource[0])
         results[resource] = [title, sentences]
-    ranked_candidate_queries = find_rank_candidate_queries(query)
-    results["query_suggestions"] = []
-    for query_suggestion in ranked_candidate_queries[:5]:
-        results["query_suggestions"].append(query_suggestion[0])
+    # ranked_candidate_queries = find_rank_candidate_queries(query)
+    # results["query_suggestions"] = []
+    # for query_suggestion in ranked_candidate_queries[:5]:
+    #     results["query_suggestions"].append(query_suggestion[0])
 
     return results
 
 
-search("sex")
+if __name__ == '__main__':
+    search_results = search("sex")
+    print("results:")
+    print(search_results)
