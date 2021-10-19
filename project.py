@@ -275,7 +275,7 @@ def search(query):
     for resource in ranked_candidate_resources:
         print("resource", resource)
         title, sentences = get_snippet(query, resource[0])
-        results[resource] = [title, sentences]
+        results[resource[0]] = [title, sentences]
     # ranked_candidate_queries = find_rank_candidate_queries(query)
     # results["query_suggestions"] = []
     # for query_suggestion in ranked_candidate_queries[:5]:
