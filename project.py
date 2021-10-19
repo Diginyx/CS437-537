@@ -130,14 +130,12 @@ def identify_candidate_resources(query):
     n = len(split_query)
     candidate_list = list()
     for term in split_query:
-        print(".", end="")
         if len(inv_idx[term]) > 0:
             candidate_list.append(set(inv_idx[term].keys()))
     if len(candidate_list) > 0:
         results = set.intersection(*candidate_list)
     if len(results) <= 50:
         for combination in combinations(split_query, n - 1):
-            print(".", end="")
             candidate_list = list()
             for term in combination:
                 candidate_list.append(inv_idx[term])
@@ -267,27 +265,25 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
 
 
 def output_to_file(document_id):
-    file = open('output.txt', 'x')
+    filename = 'output/output-' + str(document_id) + '.txt'
+    file = open(filename, 'w+')
     file.write("Title: " + wiki_dataframe['title'][document_id - 1] + "\n")
     file.write("Content: " + wiki_dataframe['content'][document_id - 1] + "\n")
     file.close()
-
+    return filename
 # In[ ]:
 
 
 def search(query):
     print("Generating results...")
     ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
-    print(ranked_candidate_resources)
     search_results = []
     query_suggestions = []
     for resource in ranked_candidate_resources:
         title, sentences = get_snippet(query, resource[0])
-        print(title)
         search_results.append([resource[0], title, sentences])
-        print(search_results)
     ranked_candidate_queries = find_rank_candidate_queries(query)
-    for query_suggestion in ranked_candidate_queries[:5]:
+    for query_suggestion in ranked_candidate_queries[0:5]:
         query_suggestions.append(query_suggestion)
     return search_results, query_suggestions
 
