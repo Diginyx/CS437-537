@@ -8,12 +8,14 @@ import nltk
 import pickle5 as pickle
 import math
 import re
+import itertools
 from tqdm import tqdm
 from nltk.stem import WordNetLemmatizer
 from names_dataset import NameDatasetV1  # v1
 from nltk.corpus import stopwords
 from itertools import combinations
 from scipy import spatial
+from collections import defaultdict
 
 # nltk.download('all')
 
@@ -66,20 +68,24 @@ def query_logs_preprocessing(row):
 
 # In[ ]:
 
-
-aol_queries = aol_query_log['Processed Query'].values
+aol_queries = aol_query_log['Query'].values
 
 
 def identify_candidate_queries(query):
     print("Identifying Candidate Queries...")
-    candidate_queries = set()
-    for aol_query in aol_queries:
-        print(".", end="")
-        if len(aol_query.split()) > len(query.split()):
+    candidate_queries = defaultdict(int)
+    potential = list()
+    sessions_with_original_query = set(aol_query_log[aol_query_log['Query'] == query]['AnonID'])
+    for anon_id in sessions_with_original_query:
+        potential_queries = aol_query_log[aol_query_log['AnonID'] == anon_id]['Query']
+        if len(potential_queries) > 1:
+            potential.append(potential_queries)
+    for aol_query in itertools.chain(*potential):
+        if len(str(aol_query).split()) > len(query.split()):
             if aol_query.startswith(query):
-                candidate_queries.add(aol_query)
+                candidate_queries[aol_query] += 1
     print("Done!")
-    return candidate_queries
+    return candidate_queries, len(sessions_with_original_query)
 
 
 # #### Ranking Candidate Suggestions
@@ -88,26 +94,17 @@ def identify_candidate_queries(query):
 # In[ ]:
 
 
-def rank_candidate_queries(original_query, candidates):
+def rank_candidate_queries(original_query, candidates, num_sessions_containing_q):
     print("Ranking Candidate Queries")
     candidate_scores = []
-    num_sessions_containing_q = 0
-    sessions_with_original_query = set(aol_query_log[aol_query_log['Query'] == original_query]['AnonID'])
-    # print(sessions_with_original_query)
-    # return sessions_with_original_query 
-    num_sessions_containing_q = len(sessions_with_original_query)
 
-    for candidate in tqdm(candidates):  # cut off at certain number of candidates?
-        print(".", end="")
-        sessions_with_candidate_query = set(aol_query_log[aol_query_log['Query'] == candidate]['AnonID'])
-        sessions_with_both_queries = sessions_with_original_query & sessions_with_candidate_query
+    for candidate in tqdm(candidates):
         if num_sessions_containing_q != 0:
-            candidate_scores.append((candidate, len(sessions_with_both_queries) / num_sessions_containing_q))
+            candidate_scores.append((candidate, candidates[candidate] / num_sessions_containing_q))
 
-    for candidate in candidates:  # supplementing the final list if the ranked results dont equal five
-        if len(candidate_scores) >= 5:
-            break
-        candidate_scores.append((candidate, 0))  # candidate score of 0 is default rank
+    if len(candidate_scores) < 1:
+        candidate_scores.append((original_query, 0))
+    print("Done!")
     return sorted(candidate_scores, key=lambda candidate_score: candidate_score[1], reverse=True)
 
 
@@ -115,8 +112,8 @@ def rank_candidate_queries(original_query, candidates):
 
 
 def find_rank_candidate_queries(query):
-    candidate_list = identify_candidate_queries(query)
-    return rank_candidate_queries(query, candidate_list)
+    candidate_list, num_sessions_containing_q = identify_candidate_queries(query)
+    return rank_candidate_queries(query, candidate_list, num_sessions_containing_q)
 
 
 # ## Relevance Ranking
@@ -231,6 +228,7 @@ def generate_sentence_snippets(query, document_id, len_title):
                 top_two[index] = (sentence, sentence_score)
                 top_two.sort(key=lambda item: item[1], reverse=True)
                 break
+
     if len(top_two) < 2:
         result = top_two[0][0]
     else:
@@ -253,7 +251,7 @@ def vectorize(phrase, document_id):
 
 def cosine_similarity(vectorized_query, vectorized_sentence):
     lenf = max(len(vectorized_query), len(vectorized_sentence))
-    for i in range(lenf + 1):
+    for i in range(lenf + 1): # padding vectors for same length
         if len(vectorized_query) == len(vectorized_sentence):
             break
         if len(vectorized_query) < i:
@@ -273,18 +271,16 @@ def search(query):
     ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
     results = {}
     for resource in ranked_candidate_resources:
-        print("resource", resource, file=sys.stderr)
         title, sentences = get_snippet(query, resource[0])
         results[resource[0]] = [title, sentences]
-    # ranked_candidate_queries = find_rank_candidate_queries(query)
-    # results["query_suggestions"] = []
-    # for query_suggestion in ranked_candidate_queries[:5]:
-    #     results["query_suggestions"].append(query_suggestion[0])
-
+    ranked_candidate_queries = find_rank_candidate_queries(query)
+    results["query_suggestions"] = []
+    for query_suggestion in ranked_candidate_queries[:5]:
+        results["query_suggestions"].append(query_suggestion)
     return results
 
 
 if __name__ == '__main__':
-    search_results = search("sex")
+    search_results = search("woman")
     print("results:")
     print(search_results)
