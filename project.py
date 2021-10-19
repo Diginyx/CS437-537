@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # In[ ]:
-
+import sys
 
 import nltk
 import pickle5 as pickle
@@ -203,7 +203,7 @@ def find_and_rank_candidate_resources(query):
 # In[27]:
 
 def get_snippet(query, document_id):
-    row = wiki_dataframe[wiki_dataframe['id'] == document_id + 1]
+    row = wiki_dataframe[wiki_dataframe['id'] == document_id]
     snippet = (  # tuple in the form (title, sentences)
         row["title"].to_string(index=False),
         generate_sentence_snippets(query, document_id, int(row["title"].str.len())))
@@ -216,7 +216,7 @@ def generate_sentence_snippets(query, document_id, len_title):
     pattern = '(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s'
     top_two = []  # format is (sentence, cosine_similarity_score)
     vectorized_query = vectorize(query, document_id)
-    for sentence in re.split(pattern, wiki_dataframe["content"][document_id][len_title:]):
+    for sentence in re.split(pattern, wiki_dataframe["content"][document_id - 1][len_title:]):
         sentence = sentence.replace("\r", "").replace("\n", "")  # 4 is for removal of \r\n\r\n for each sentence.
         lsentence = sentence.lower()
 
@@ -273,7 +273,7 @@ def search(query):
     ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
     results = {}
     for resource in ranked_candidate_resources:
-        print("resource", resource)
+        print("resource", resource, file=sys.stderr)
         title, sentences = get_snippet(query, resource[0])
         results[resource[0]] = [title, sentences]
     # ranked_candidate_queries = find_rank_candidate_queries(query)
