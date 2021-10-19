@@ -266,21 +266,33 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
 # In[ ]:
 
 
+def output_to_file(document_id):
+    file = open('output.txt', 'x')
+    file.write("Title: " + wiki_dataframe['title'][document_id - 1] + "\n")
+    file.write("Content: " + wiki_dataframe['content'][document_id - 1] + "\n")
+    file.close()
+
+# In[ ]:
+
+
 def search(query):
     print("Generating results...")
     ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
-    results = {}
+    print(ranked_candidate_resources)
+    search_results = []
+    query_suggestions = []
     for resource in ranked_candidate_resources:
         title, sentences = get_snippet(query, resource[0])
-        results[resource[0]] = [title, sentences]
+        print(title)
+        search_results.append([resource[0], title, sentences])
+        print(search_results)
     ranked_candidate_queries = find_rank_candidate_queries(query)
-    results["query_suggestions"] = []
     for query_suggestion in ranked_candidate_queries[:5]:
-        results["query_suggestions"].append(query_suggestion)
-    return results
+        query_suggestions.append(query_suggestion)
+    return search_results, query_suggestions
 
 
 if __name__ == '__main__':
-    search_results = search("woman")
+    search_results, query_suggestions = search("sex")
     print("results:")
     print(search_results)
