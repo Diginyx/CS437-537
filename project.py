@@ -23,10 +23,26 @@ from collections import defaultdict
 
 # In[ ]:
 
-
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer 
+import pycountry
 lemmatizer = WordNetLemmatizer()
+from names_dataset import NameDatasetV1 # v1
 names = NameDatasetV1()
+
 stop_words = set(stopwords.words('english'))
+import pandas as pd
+companies_file = pd.read_csv('companies_sorted.csv')
+companies_dataframe = pd.DataFrame(companies_file)
+companies_dataframe
+companies = set(companies_dataframe['name'])
+words = set(nltk.corpus.words.words())
+lowerCasedWords = map(lambda word: word.lower(), nltk.corpus.words.words())
+lowerCasedWords = set(list(lowerCasedWords))
+for country in list(pycountry.countries):
+    lowerCasedWords.add(country.name.lower())
+for company in companies:
+    lowerCasedWords.add(str(company).lower())
 
 # In[ ]:
 
@@ -138,7 +154,7 @@ def identify_candidate_resources(query):
         for combination in combinations(split_query, n - 1):
             candidate_list = list()
             for term in combination:
-                candidate_list.append(inv_idx[term])
+                candidate_list.append(set(inv_idx[term].keys()))
             if len(candidate_list) > 0:
                 results = set.intersection(*candidate_list)
             if len(results) > 50:
@@ -166,6 +182,8 @@ def tf_idf(split_query, document_id):
     for term in split_query:
         if term not in inv_idx:
             continue
+        inv_idx[term][document_id] 
+        wiki_dataframe['most_frequent_term'][document_id - 1][0][1]
         score += (inv_idx[term][document_id] / wiki_dataframe['most_frequent_term'][document_id - 1][0][1]) * math.log(
             (len(wiki_dataframe) / len(inv_idx[term])), 2)
     return score
@@ -182,6 +200,7 @@ def rank_candidate_resources(query, candidate_resources):
     for document_id in candidate_resources:
         print(".", end="")
         ranked_candidates[document_id] = tf_idf(query.split(), document_id)
+
     return sorted(ranked_candidates.items(), key=lambda item: item[1], reverse=True)
 
 
@@ -228,7 +247,7 @@ def generate_sentence_snippets(query, document_id, len_title):
                 break
 
     if len(top_two) < 2:
-        result = top_two[0][0]
+        result = (top_two[0][0],'')
     else:
         result = (top_two[0][0], top_two[1][0])
     return result
@@ -267,21 +286,37 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
 def output_to_file(document_id):
     filename = 'output/output-' + str(document_id) + '.txt'
     file = open(filename, 'w+')
-    file.write("Title: " + wiki_dataframe['title'][document_id - 1] + "\n")
-    file.write("Content: " + wiki_dataframe['content'][document_id - 1] + "\n")
+    file.write("Title: " + wiki_dataframe['content'][document_id - 1]+ "\n")
     file.close()
     return filename
 # In[ ]:
 
+# lemmatization, lowercase, remove non alpha, remove non-english, remove numbers and stopword removal
+rejected_content = []
+def preprocess_query(query):
+    filtered_content = []
+    for token in nltk.word_tokenize(query):
+        token = lemmatizer.lemmatize(token).lower()
+        if names.search_first_name(token) or names.search_last_name(token) or ((token in lowerCasedWords) and (token not in stop_words) and (token.isalpha())):
+            filtered_content.append(token) 
+        else:
+            rejected_content.append(token)
+        
+    return ' '.join(filtered_content)
+
 
 def search(query):
+    processed_query = preprocess_query(query)
     print("Generating results...")
-    ranked_candidate_resources = find_and_rank_candidate_resources(query)[0:10]
+    if processed_query:
+        ranked_candidate_resources = find_and_rank_candidate_resources(processed_query)[0:10]
+    else:
+        ranked_candidate_resources = []
     search_results = []
     query_suggestions = []
     for resource in ranked_candidate_resources:
-        title, sentences = get_snippet(query, resource[0])
-        search_results.append([resource[0], title, sentences])
+        title, sentences = get_snippet(processed_query, resource[0])
+        search_results.append([resource[0], title, sentences, resource[1]])
     ranked_candidate_queries = find_rank_candidate_queries(query)
     for query_suggestion in ranked_candidate_queries[0:5]:
         query_suggestions.append(query_suggestion)

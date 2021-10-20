@@ -34,24 +34,27 @@ while True:  # The Event Loop
         search_results, query_suggestions = search(query)
         print("search results:", search_results)
         print("query_suggestions:", query_suggestions)
-
-        second_window = sg.Window('Results', [
-            [sg.Image('joogle_results.png', size=(760, 300), pad=(0, 0))],
-            [[[sg.Text(item[1], text_color='blue', key=(item[0]), enable_events=True, metadata=(item[0]))],
-              [sg.Text(" " + item[2][0] + "\n " + item[2][1], size=(80, 2), pad=(0, 0)) if item[2][1] else sg.Text(
-                  item[2][0],
-                  auto_size_text=True,
-                  pad=(0, 0))]]
-             for item in search_results],
-            [sg.Text("Query Suggestions")],
-            [sg.Text(suggestion[0]) for suggestion in query_suggestions],
-            [sg.Button('Back')]
-        ], finalize=True, resizable=True)
-
-        if len(search_results) < 1:
+        if len(search_results) > 1:
             second_window = sg.Window('Results', [
                 [sg.Image('joogle_results.png', size=(760, 300), pad=(0, 0))],
-                [sg.Text('No Results were found for the query:' + query)]
+                [[[sg.Text(item[1], text_color='blue', key=(item[0]), enable_events=True, metadata=(item[0]))],
+                [sg.Text(" " + item[2][0] + "\n " + item[2][1], size=(80, 2), pad=(0, 0)) if item[2][1] else sg.Text(
+                    item[2][0],
+                    auto_size_text=True,
+                    pad=(0, 0))]]
+                for item in search_results],
+                [sg.Text("Query Suggestions")],
+                [sg.Text(suggestion[0]) for suggestion in query_suggestions],
+                [sg.Button('Back')]
+            ], finalize=True, resizable=True)
+
+        elif len(search_results) < 1:
+            second_window = sg.Window('Results', [
+                [sg.Image('joogle_results.png', size=(760, 300), pad=(0, 0))],
+                [sg.Text('No Results were found for the query:' + query)],
+                [sg.Text("Query Suggestions")],
+                [sg.Text(suggestion[0]) for suggestion in query_suggestions],
+                [sg.Button('Back')]
             ], finalize=True, resizable=True)
 
         while True:
@@ -69,11 +72,10 @@ while True:  # The Event Loop
 
                 filename = output_to_file(item[0])
                 file = open(filename)
-                for line in file.readline():
-                    print(line)
+                print(file.readline())
                 print(item[0])
-                subprocess.Popen(["notepad", filename])
-                # subprocess.run(["notepad ", filename])
+                subprocess.Popen(["open", filename])
+                # subprocess.run(["notepad", filename])
                 break
 
 window.close()
