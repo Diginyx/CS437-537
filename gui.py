@@ -4,7 +4,6 @@ import subprocess
 
 sg.change_look_and_feel('Material1')
 
-
 searchLayout = [
     [sg.Image('./joogle.png', size=(760, 300))],
     [sg.Input(key='-query-', background_color="white", text_color="black")],
@@ -38,11 +37,8 @@ while True:  # The Event Loop
             second_window = sg.Window('Results', [
                 [sg.Image('joogle_results.png', size=(760, 300), pad=(0, 0))],
                 [[[sg.Text(item[1], text_color='blue', key=(item[0]), enable_events=True, metadata=(item[0]))],
-                [sg.Text(" " + item[2][0] + "\n " + item[2][1], size=(80, 2), pad=(0, 0)) if item[2][1] else sg.Text(
-                    item[2][0],
-                    auto_size_text=True,
-                    pad=(0, 0))]]
-                for item in search_results],
+                  [sg.Text(" " + item[2][0] + "\n " + item[2][1], size=(70, 2), pad=(0, 0))]] for item in
+                 search_results],
                 [sg.Text("Query Suggestions")],
                 [sg.Text(suggestion[0]) for suggestion in query_suggestions],
                 [sg.Button('Back')]
@@ -74,9 +70,8 @@ while True:  # The Event Loop
                 file = open(filename)
                 print(file.readline())
                 print(item[0])
-                subprocess.Popen(["open", filename])
+                subprocess.Popen(["notepad", filename])
                 # subprocess.run(["notepad", filename])
                 break
 
 window.close()
-

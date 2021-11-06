@@ -2,6 +2,7 @@
 # coding: utf-8
 
 # In[ ]:
+import string
 import sys
 
 import nltk
@@ -24,25 +25,16 @@ from collections import defaultdict
 # In[ ]:
 
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer 
+from nltk.stem import WordNetLemmatizer
 import pycountry
+
 lemmatizer = WordNetLemmatizer()
-from names_dataset import NameDatasetV1 # v1
+from names_dataset import NameDatasetV1  # v1
+
 names = NameDatasetV1()
 
 stop_words = set(stopwords.words('english'))
 import pandas as pd
-companies_file = pd.read_csv('companies_sorted.csv')
-companies_dataframe = pd.DataFrame(companies_file)
-companies_dataframe
-companies = set(companies_dataframe['name'])
-words = set(nltk.corpus.words.words())
-lowerCasedWords = map(lambda word: word.lower(), nltk.corpus.words.words())
-lowerCasedWords = set(list(lowerCasedWords))
-for country in list(pycountry.countries):
-    lowerCasedWords.add(country.name.lower())
-for company in companies:
-    lowerCasedWords.add(str(company).lower())
 
 # In[ ]:
 
@@ -59,11 +51,22 @@ def load_files():
         wiki_dataframe = pickle.load(wiki_df)
     inv_idx = pickle.load(open("./data/inv_idx_augmented_nltk_corpus_to_remove_non-english.pkl", "rb"))
     aol_query_log = pickle.load(open("./data/aol_query_log_data.pkl", "rb"))
+
+    companies_file = pd.read_csv('./data/companies_sorted.csv')
+    companies_dataframe = pd.DataFrame(companies_file)
+    companies = set(companies_dataframe['name'])
+    # words = set(nltk.corpus.words.words())
+    lower_cased_words = map(lambda word: word.lower(), nltk.corpus.words.words())
+    lower_cased_words = set(list(lower_cased_words))
+    for country in list(pycountry.countries):
+        lower_cased_words.add(country.name.lower())
+    for company in companies:
+        lower_cased_words.add(str(company).lower())
     print("Done!")
-    return [wiki_dataframe, inv_idx, aol_query_log]
+    return [wiki_dataframe, inv_idx, aol_query_log, lower_cased_words]
 
 
-wiki_dataframe, inv_idx, aol_query_log = load_files()
+wiki_dataframe, inv_idx, aol_query_log, lower_cased_words = load_files()
 
 
 # ## Suggesting Queries
@@ -173,7 +176,7 @@ def identify_candidate_resources(query):
 
 
 def tf_idf(split_query, document_id):
-    score = 0.001  # not zero for normalization
+    score = 0  # not zero for normalization
 
     if document_id == 0:
         print("error in tf-idf function")
@@ -182,7 +185,7 @@ def tf_idf(split_query, document_id):
     for term in split_query:
         if term not in inv_idx:
             continue
-        inv_idx[term][document_id] 
+        inv_idx[term][document_id]
         wiki_dataframe['most_frequent_term'][document_id - 1][0][1]
         score += (inv_idx[term][document_id] / wiki_dataframe['most_frequent_term'][document_id - 1][0][1]) * math.log(
             (len(wiki_dataframe) / len(inv_idx[term])), 2)
@@ -234,7 +237,7 @@ def generate_sentence_snippets(query, document_id, len_title):
         sentence = sentence.replace("\r", "").replace("\n", "")  # 4 is for removal of \r\n\r\n for each sentence.
         lsentence = sentence.lower()
 
-        sentence_score = cosine_similarity(vectorized_query, vectorize(lsentence, document_id))
+        sentence_score = cosine_similarity(query, lsentence, document_id)
         if len(top_two) < 2:
             top_two.append((sentence, sentence_score))
             top_two.sort(key=lambda item: item[1], reverse=True)
@@ -247,7 +250,7 @@ def generate_sentence_snippets(query, document_id, len_title):
                 break
 
     if len(top_two) < 2:
-        result = (top_two[0][0],'')
+        result = (top_two[0][0], '')
     else:
         result = (top_two[0][0], top_two[1][0])
     return result
@@ -266,15 +269,22 @@ def vectorize(phrase, document_id):
 # In[33]:
 
 
-def cosine_similarity(vectorized_query, vectorized_sentence):
-    lenf = max(len(vectorized_query), len(vectorized_sentence))
-    for i in range(lenf + 1): # padding vectors for same length
-        if len(vectorized_query) == len(vectorized_sentence):
-            break
-        if len(vectorized_query) < i:
-            vectorized_query.append(0.001)
-        if len(vectorized_sentence) < i:
-            vectorized_sentence.append(0.001)
+def cosine_similarity(query, sentence, doc_id):
+    colab_sent = set(query.split()).union(sentence.translate(string.punctuation).split())
+    print(colab_sent)
+    vectorized_query = []
+    vectorized_sentence = []
+    for word in colab_sent:
+        if word in query:
+            vectorized_query.append(tf_idf([word], doc_id))
+        else:
+            vectorized_query.append(0)
+        if word in sentence:
+            vectorized_sentence.append(tf_idf([word], doc_id))
+        else:
+            vectorized_sentence.append(0)
+    print(vectorized_query)
+    print(vectorized_sentence)
     return 1 - spatial.distance.cosine(list(vectorized_sentence), list(vectorized_query))
 
 
@@ -286,22 +296,27 @@ def cosine_similarity(vectorized_query, vectorized_sentence):
 def output_to_file(document_id):
     filename = 'output/output-' + str(document_id) + '.txt'
     file = open(filename, 'w+')
-    file.write("Title: " + wiki_dataframe['content'][document_id - 1]+ "\n")
+    file.write("Title: " + wiki_dataframe['content'][document_id - 1] + "\n")
     file.close()
     return filename
+
+
 # In[ ]:
 
 # lemmatization, lowercase, remove non alpha, remove non-english, remove numbers and stopword removal
 rejected_content = []
+
+
 def preprocess_query(query):
     filtered_content = []
     for token in nltk.word_tokenize(query):
         token = lemmatizer.lemmatize(token).lower()
-        if names.search_first_name(token) or names.search_last_name(token) or ((token in lowerCasedWords) and (token not in stop_words) and (token.isalpha())):
-            filtered_content.append(token) 
+        if names.search_first_name(token) or names.search_last_name(token) or (
+                (token in lower_cased_words) and (token not in stop_words) and (token.isalpha())):
+            filtered_content.append(token)
         else:
             rejected_content.append(token)
-        
+
     return ' '.join(filtered_content)
 
 
