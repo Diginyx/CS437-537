@@ -153,6 +153,7 @@ def identify_candidate_resources(query):
         synonyms.extend(wordnet.synsets(term))
     for word in synonyms:
         split_query.append(word.lemmas()[0].name())
+    print(synonyms)
     split_query = list(set(split_query))
     n = len(split_query)
     candidate_list = list()
@@ -175,7 +176,7 @@ def identify_candidate_resources(query):
                 break
             else:
                 n -= 1
-    return results, n
+    return results, len(split_query)
 
 
 # ### TF-IDF
@@ -187,7 +188,7 @@ def identify_candidate_resources(query):
 
 
 def tf_idf(split_query, document_id):
-    score = 0  # not zero for normalization
+    score = 0  
 
     if document_id == 0:
         print("error in tf-idf function")
@@ -196,8 +197,6 @@ def tf_idf(split_query, document_id):
     for term in split_query:
         if term not in inv_idx:
             continue
-        inv_idx[term][document_id]
-        wiki_dataframe['most_frequent_term'][document_id - 1][0][1]
         score += (inv_idx[term][document_id] / wiki_dataframe['most_frequent_term'][document_id - 1][0][1]) * math.log(
             (len(wiki_dataframe) / len(inv_idx[term])), 2)
     return score
