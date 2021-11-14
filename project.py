@@ -17,6 +17,8 @@ from nltk.corpus import stopwords
 from itertools import combinations
 from scipy import spatial
 from collections import defaultdict
+from nltk.corpus import wordnet
+from itertools import combinations
 
 # nltk.download('all')
 
@@ -47,10 +49,12 @@ tqdm.pandas()
 
 def load_files():
     print("loading files...")
-    with open("./data/wiki_dataframe_augmented_nltk_corpus_to_remove_non-english.pkl", "rb") as wiki_df:
+    with open("./data/wiki_dataframe_augmented_nltk_corpus_to_remove_non-english.pkl", "rb") as wiki_df, \
+            open("./data/inv_idx_augmented_nltk_corpus_to_remove_non-english.pkl", "rb") as inverted_index, \
+            open("./data/aol_query_log_data.pkl", "rb") as aol:
         wiki_dataframe = pickle.load(wiki_df)
-    inv_idx = pickle.load(open("./data/inv_idx_augmented_nltk_corpus_to_remove_non-english.pkl", "rb"))
-    aol_query_log = pickle.load(open("./data/aol_query_log_data.pkl", "rb"))
+        inv_idx = pickle.load(inverted_index)
+        aol_query_log = pickle.load(aol)
 
     companies_file = pd.read_csv('./data/companies_sorted.csv')
     companies_dataframe = pd.DataFrame(companies_file)
@@ -64,7 +68,6 @@ def load_files():
         lower_cased_words.add(str(company).lower())
     print("Done!")
     return [wiki_dataframe, inv_idx, aol_query_log, lower_cased_words]
-
 
 wiki_dataframe, inv_idx, aol_query_log, lower_cased_words = load_files()
 
@@ -141,30 +144,38 @@ def find_rank_candidate_queries(query):
 
 # In[6]:
 
-
 def identify_candidate_resources(query):
     print("Identifying Candidate Resources...")
     results = set()
     split_query = query.split()
+    synonyms = list()
+    for term in split_query:
+        synonyms.extend(wordnet.synsets(term))
+    for word in synonyms:
+        split_query.append(word.lemmas()[0].name())
+    split_query = list(set(split_query))
     n = len(split_query)
     candidate_list = list()
     for term in split_query:
+        print(".", end="")
         if len(inv_idx[term]) > 0:
             candidate_list.append(set(inv_idx[term].keys()))
     if len(candidate_list) > 0:
         results = set.intersection(*candidate_list)
     if len(results) <= 50:
         for combination in combinations(split_query, n - 1):
+            print(".", end="")
             candidate_list = list()
             for term in combination:
-                candidate_list.append(set(inv_idx[term].keys()))
+                if len(inv_idx[term]) > 0:
+                    candidate_list.append(set(inv_idx[term].keys()))
             if len(candidate_list) > 0:
                 results = set.intersection(*candidate_list)
             if len(results) > 50:
                 break
             else:
                 n -= 1
-    return results
+    return results, n
 
 
 # ### TF-IDF
@@ -197,12 +208,12 @@ def tf_idf(split_query, document_id):
 # In[9]:
 
 
-def rank_candidate_resources(query, candidate_resources):
+def rank_candidate_resources(query, candidate_resources, n):
     print("Ranking Candidate Resources...")
     ranked_candidates = {}
     for document_id in candidate_resources:
         print(".", end="")
-        ranked_candidates[document_id] = tf_idf(query.split(), document_id)
+        ranked_candidates[document_id] = tf_idf(query.split(), document_id) / n
 
     return sorted(ranked_candidates.items(), key=lambda item: item[1], reverse=True)
 
@@ -211,8 +222,8 @@ def rank_candidate_resources(query, candidate_resources):
 
 
 def find_and_rank_candidate_resources(query):
-    candidates = identify_candidate_resources(query)
-    return rank_candidate_resources(query, candidates)
+    candidates, n = identify_candidate_resources(query)
+    return rank_candidate_resources(query, candidates, n)
 
 
 # ### Snippet Generation
@@ -271,7 +282,6 @@ def vectorize(phrase, document_id):
 
 def cosine_similarity(query, sentence, doc_id):
     colab_sent = set(query.split()).union(sentence.translate(string.punctuation).split())
-    print(colab_sent)
     vectorized_query = []
     vectorized_sentence = []
     for word in colab_sent:
@@ -283,8 +293,6 @@ def cosine_similarity(query, sentence, doc_id):
             vectorized_sentence.append(tf_idf([word], doc_id))
         else:
             vectorized_sentence.append(0)
-    print(vectorized_query)
-    print(vectorized_sentence)
     return 1 - spatial.distance.cosine(list(vectorized_sentence), list(vectorized_query))
 
 

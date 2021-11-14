@@ -70,8 +70,9 @@ while True:  # The Event Loop
                 file = open(filename)
                 print(file.readline())
                 print(item[0])
-                subprocess.Popen(["notepad", filename])
+                # subprocess.Popen(["notepad", filename])
                 # subprocess.run(["notepad", filename])
+                subprocess.call(['open', '-a', 'TextEdit', filename])
                 break
 
 window.close()
