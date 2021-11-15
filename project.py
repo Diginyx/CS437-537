@@ -155,6 +155,7 @@ def identify_candidate_resources(query):
         split_query.append(word.lemmas()[0].name())
     print(synonyms)
     split_query = list(set(split_query))
+    print(split_query)
     n = len(split_query)
     candidate_list = list()
     for term in split_query:
@@ -164,18 +165,20 @@ def identify_candidate_resources(query):
     if len(candidate_list) > 0:
         results = set.intersection(*candidate_list)
     if len(results) <= 50:
-        for combination in combinations(split_query, n - 1):
-            print(".", end="")
-            candidate_list = list()
-            for term in combination:
-                if len(inv_idx[term]) > 0:
-                    candidate_list.append(set(inv_idx[term].keys()))
-            if len(candidate_list) > 0:
-                results = set.intersection(*candidate_list)
-            if len(results) > 50:
-                break
-            else:
-                n -= 1
+        for x in range(0,n):
+            for combination in combinations(split_query, n - 1):
+                print("combination: ", combination)
+                print(".", end="")
+                candidate_list = list()
+                for term in combination:
+                    if len(inv_idx[term]) > 0:
+                        candidate_list.append(set(inv_idx[term].keys()))
+                if len(candidate_list) > 0:
+                    results = set.intersection(*candidate_list)
+                if len(results) > 50:
+                    return results, len(split_query)
+            n -= 1
+    # print(results)
     return results, len(split_query)
 
 
